@@ -78,7 +78,7 @@ public class ElevatorSubsystem extends SubsystemBase {
   }
 
   public void lowerElevator() {
-    elevatorMotor.set(-.3);
+    elevatorMotor.set(-.4);
   }
 
   public void idleElevator() {
