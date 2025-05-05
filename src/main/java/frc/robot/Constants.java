@@ -27,4 +27,15 @@ public final class Constants {
       public static double kMaxAcceleration = 0.75;
     }
   }
+
+  public static class ElevatorConstants {
+    public static double kDrumRadius = 1;
+    public static final double kElevatorGearing = 12.0;
+
+    public static double kElevatorkS = 0;
+    public static double kElevatorkG = 0;
+    public static double kElevatorkV = 0;
+    public static double kElevatorkA = 0;
+
+  }
 }

@@ -5,6 +5,7 @@
 package frc.robot.subsystems;
 
 import frc.robot.Constants;
+import frc.robot.Constants.ElevatorConstants;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import com.revrobotics.spark.SparkBase.ControlType;
@@ -18,6 +19,7 @@ import com.revrobotics.spark.SparkMax;
 import edu.wpi.first.math.util.*;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.math.controller.ElevatorFeedforward;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
 
@@ -34,7 +36,15 @@ public class ElevatorSubsystem extends SubsystemBase {
   private final RelativeEncoder elevatorEncoder;
 
   private final TrapezoidProfile.Constraints elevatorConstraints = 
-    new TrapezoidProfile.Constraints(Constants.PIDConstants.PIDConstraints.kMaxVelocity, Constants.PIDConstants.PIDConstraints.kMaxAcceleration);
+    new TrapezoidProfile.Constraints(Constants.PIDConstants.PIDConstraints.kMaxVelocity, 
+                                     Constants.PIDConstants.PIDConstraints.kMaxAcceleration);
+
+  private final ElevatorFeedforward elevatorFeedforward =
+      new ElevatorFeedforward(
+          ElevatorConstants.kElevatorkS,
+          ElevatorConstants.kElevatorkG,
+          ElevatorConstants.kElevatorkV,
+          ElevatorConstants.kElevatorkA);
 
 
   public ElevatorSubsystem() {
@@ -50,19 +60,29 @@ public class ElevatorSubsystem extends SubsystemBase {
     elevatorPID.setTolerance(1.0);
   }
 
-  public Command autoElevator(double position) {
-    //no railgun
-    double targetPosition = MathUtil.clamp(position, 0, 75);
-    return run(()-> {
-      double elevatorPosition = elevatorEncoder.getPosition();
-      double ElevatorPID = elevatorPID.calculate(elevatorPosition, targetPosition);
-      double motorOutput = MathUtil.clamp(ElevatorPID, -.3, .3);
-
-        elevatorMotor.set(motorOutput);
-    });
+  public Command autoElevator(double positionMeters) {
+    double targetPosition = MathUtil.clamp(positionMeters, 0, 0.75); // Clamp to 75 cm in meters
+  
+    return run(() -> {
+      double pidOutput = elevatorPID.calculate(getElevatorPosition(), targetPosition);
+      double ffOutput = elevatorFeedforward.calculateWithVelocities(getElevatorVelocity(),
+                                                                    elevatorPID.getSetpoint().velocity);
+      double motorVoltage = MathUtil.clamp(pidOutput + ffOutput, -7, 7);
+  
+      elevatorMotor.setVoltage(motorVoltage);
+    }); // Runs continuously, holding position
   }
 
-  
+  public double getElevatorPosition() {
+    //find elevator position from encoder value and elevator drum
+    return (elevatorEncoder.getPosition() / ElevatorConstants.kElevatorGearing) * (2 * Math.PI * Constants.ElevatorConstants.kDrumRadius);
+  }
+
+  public double getElevatorVelocity() {
+    //get elevator velocity in m/s
+    return (elevatorEncoder.getVelocity() / 60 / ElevatorConstants.kElevatorGearing) * (2 * Math.PI * Constants.ElevatorConstants.kDrumRadius);
+  }
+
   //use these for manual control
   public Command raiseElevatorCMD() {
     return runEnd(()-> raiseElevator(), ()-> idleElevator());
