@@ -45,6 +45,8 @@ public class ElevatorSubsystem extends SubsystemBase {
           ElevatorConstants.kElevatorkG,
           ElevatorConstants.kElevatorkV,
           ElevatorConstants.kElevatorkA);
+  
+  private double targetPosition = 0.0;
 
 
   public ElevatorSubsystem() {
@@ -61,16 +63,27 @@ public class ElevatorSubsystem extends SubsystemBase {
   }
 
   public Command autoElevator(double positionMeters) {
-    double targetPosition = MathUtil.clamp(positionMeters, 0, 0.75); // Clamp to 75 cm in meters
-  
+    targetPosition = MathUtil.clamp(positionMeters, 0, 0.75); // Save and clamp to 75 cm in meters
+    
     return run(() -> {
       double pidOutput = elevatorPID.calculate(getElevatorPosition(), targetPosition);
       double ffOutput = elevatorFeedforward.calculateWithVelocities(getElevatorVelocity(),
                                                                     elevatorPID.getSetpoint().velocity);
       double motorVoltage = MathUtil.clamp(pidOutput + ffOutput, -7, 7);
-  
+    
       elevatorMotor.setVoltage(motorVoltage);
-    }); // Runs continuously, holding position
+    });
+  }
+
+  public Command holdPositionCommand() {
+    return run(() -> {
+      double pidOutput = elevatorPID.calculate(getElevatorPosition(), targetPosition);
+      double ffOutput = elevatorFeedforward.calculateWithVelocities(getElevatorVelocity(),
+                                                                    elevatorPID.getSetpoint().velocity);
+      double motorVoltage = MathUtil.clamp(pidOutput + ffOutput, -7, 7);
+    
+      elevatorMotor.setVoltage(motorVoltage);
+    });
   }
 
   public double getElevatorPosition() {
